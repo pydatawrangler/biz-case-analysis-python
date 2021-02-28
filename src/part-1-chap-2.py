@@ -42,6 +42,7 @@ from PIL import Image
 from IPython.display import display, Image
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 # %%
 # Influence Diagram
@@ -83,6 +84,9 @@ p2_dur = d_vals['p2_dur'].values
 p1_capex = d_vals['p1_capex'].values
 p2_capex = d_vals['p2_capex'].values
 maint_capex = d_vals['maint_capex'].values
+time_to_peak_sales = d_vals['time_to_peak_sales'].values
+mkt_demand = d_vals['mkt_demand'].values
+price = d_vals['price'].values
 
 # %%
 # CAPEX Module
@@ -104,4 +108,55 @@ depr_matrix = year.repeat(HORIZON).reshape(HORIZON,HORIZON).transpose()
 print(depr_matrix)
 
 # %%
-# FINISHED PAGE 22
+for y in year:
+    if y <= p1_dur:
+        depr_matrix[y-1,] = 0
+    elif y == p1_dur+1:
+        depr_matrix[y-1,] = (depr_matrix[y-1,] >= (1+p1_dur)) * \
+                (depr_matrix[y-1,] < (y + DEPRPER)) * p1_capex / DEPRPER
+    else:
+        depr_matrix[y-1,] = (depr_matrix[y-1,] >= y) * \
+                (depr_matrix[y-1,] < (y + DEPRPER)) * capex[y-1] / DEPRPER
+
+print(depr_matrix)
+
+# %%
+# Calculate total depreciation
+depr = depr_matrix.sum(axis=0)
+print(depr)
+
+# %%
+# Plot depreciation
+plt.plot(year, depr/1E6, marker='o', mfc='none')
+plt.xlabel('Year')
+plt.ylabel('Depreciation [$000,000]')
+
+# %%
+# Sales and Revenue Block
+mkt_adoption = np.minimum(np.cumsum(phase > 1) / time_to_peak_sales, np.ones(len(phase)))
+print(mkt_adoption)
+
+# %%
+# Calculate Sales
+sales = mkt_adoption * mkt_demand * 1000 * 2000
+print(sales)
+
+# %%
+# Plot sales
+plt.plot(year, sales/1000, marker='o', mfc='none')
+plt.xlabel('Year')
+plt.ylabel('Sales [000 lbs]')
+
+# %%
+# Calculate revenue
+revenue = sales * price
+print(revenue)
+
+# %%
+# Plot revenue
+plt.plot(year, revenue/1000, marker='o', mfc='none')
+plt.xlabel('Year')
+plt.ylabel('Revenue [$000]')
+
+# %%
+# STOPPED AT OPEX BLOCK ON PAGE 30
