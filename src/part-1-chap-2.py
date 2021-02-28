@@ -99,4 +99,9 @@ capex = (phase == 1) * p1_capex/p1_dur + \
 print(capex)
 
 # %%
-# ENDED AT TOP OF PAGE 22
+# Generate depreciation matrix
+depr_matrix = year.repeat(HORIZON).reshape(HORIZON,HORIZON).transpose()
+print(depr_matrix)
+
+# %%
+# FINISHED PAGE 22
