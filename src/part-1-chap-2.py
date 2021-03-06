@@ -40,6 +40,7 @@ The problem is to show the following:
 # Imports
 from PIL import Image
 from IPython.display import display, Image
+from numpy.lib.financial import npv
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -53,6 +54,8 @@ display(Image(filename='../assets/fig-2-1-influence-diagram-deterministic-base-c
 
 # %%
 # Import Global Model Assumptions
+import sys
+sys.path.append('../data/')
 from global_assumptions import *
 '''
 HORIZON = 20 # years, length of time the model covers.
@@ -64,11 +67,12 @@ DISCOUNTRATE = 12 # %/year, used for discounted cash flow calculations.
 DEPRPER = 7 # years, the depreciation schedule for the capital.
 '''
 
-print(HORIZON)
-print(SAMPSIZE)
-print(TAXRATE)
-print(DISCOUNTRATE)
-print(DEPRPER)
+print(f'HORIZON = {HORIZON} years')
+print(f'year = {year} (range)')
+print(f'SAMPSIZE = {SAMPSIZE} iterations')
+print(f'TAXRATE = {TAXRATE}%')
+print(f'DISCOUNTRATE = {DISCOUNTRATE}% / year')
+print(f'DEPRPER = {DEPRPER} years')
 
 # %%
 # Read in risk assumptions data
@@ -87,6 +91,11 @@ maint_capex = d_vals['maint_capex'].values
 time_to_peak_sales = d_vals['time_to_peak_sales'].values
 mkt_demand = d_vals['mkt_demand'].values
 price = d_vals['price'].values
+fixed_prod_cost = d_vals['fixed_prod_cost'].values
+prod_cost_escal = d_vals['prod_cost_escal'].values
+var_prod_cost = d_vals['var_prod_cost'].values
+var_cost_redux = d_vals['var_cost_redux'].values
+gsa_rate = d_vals['gsa_rate'].values
 
 # %%
 # CAPEX Module
@@ -159,4 +168,65 @@ plt.xlabel('Year')
 plt.ylabel('Revenue [$000]')
 
 # %%
-# STOPPED AT OPEX BLOCK ON PAGE 30
+# OPEX Block
+# Fixed Costs
+fixed_cost = (phase > 1) * fixed_prod_cost * (1 + prod_cost_escal / 100) ** (year - p1_dur -1)
+
+# %%
+# Variable Costs
+var_cost = sales * var_prod_cost * (1 - var_cost_redux / 100) ** (year - p1_dur - 1)
+
+# %%
+# Remaining expenses
+gsa = (gsa_rate / 100) * revenue
+opex = fixed_cost + var_cost
+
+# %%
+# Pro Forma Block
+gross_profit = revenue - gsa
+op_profit_before_tax = gross_profit - opex - depr
+tax = op_profit_before_tax * TAXRATE / 100
+op_profit_after_tax = op_profit_before_tax - tax
+cash_flow = op_profit_after_tax + depr - capex
+cum_cash_flow = np.cumsum(cash_flow)
+
+# %%
+# Plot Cash Flow
+plt.plot(year, cash_flow/1000, marker='o', mfc='none')
+plt.xlabel('Year')
+plt.ylabel('Cash Flow [$000]')
+
+# %%
+# Plot Cumulative Cash Flow
+plt.plot(year, cum_cash_flow/1000, marker='o', mfc='none')
+plt.xlabel('Year')
+plt.ylabel('Cash Flow [$000]')
+
+# %%
+# Net Present Value
+# calculate and plot discount factors
+discount_factors = 1 / (1 + DISCOUNTRATE / 100) ** year
+plt.plot(year, discount_factors, marker='o', mfc='none')
+plt.xlabel('Year')
+plt.ylabel('Discount Factors')
+
+# %%
+# Calculate and plot discounted cash flow
+discounted_cash_flow = cash_flow * discount_factors
+plt.plot(year, discounted_cash_flow/1000, marker='o', mfc='none')
+plt.xlabel('Year')
+plt.ylabel('Discounted Cash Flow [$000]')
+
+# %%
+# Calculate NPV
+npv_calc = np.sum(discounted_cash_flow)
+print(npv_calc)
+print('THE CALCULATED NPV IS $6,954,778, AND DOES NOT MATCH TEXT WHICH IS $8,214,363!')
+
+# %%
+# Define NPV Function
+def calc_npv(series, time, dr, eotp=True):
+    return np.sum(series / (1 + dr) ** (time - (1 - eotp)))
+
+# %%
+# STOPPED AT END OF PAGE 36
